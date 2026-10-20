@@ -4,7 +4,7 @@ Bot Telegram interaktif berbasis Python untuk memainkan game party **Werewolf** 
 
 ---
 
-## 🚀 Fitur Utama
+##  Fitur Utama
 - **Group Game Management:** Sistem lobby permainan menggunakan perintah `/newgame`, `/join`, dan `/startgame`.
 - **Private Role Assignment:** Pembagian peran rahasia dikirimkan langsung ke obrolan pribadi masing-masing pemain.
 - **Asynchronous Processing:** Menangani banyak input perintah dari beberapa pemain sekaligus secara *real-time*.
@@ -12,7 +12,7 @@ Bot Telegram interaktif berbasis Python untuk memainkan game party **Werewolf** 
 
 ---
 
-## 🛠️ Tech Stack
+##  Tech Stack
 - **Language:** Python 3.x
 - **Library:** `python-telegram-bot`
 - **Version Control:** Git & GitHub
@@ -20,7 +20,7 @@ Bot Telegram interaktif berbasis Python untuk memainkan game party **Werewolf** 
 
 ---
 
-## 📦 Cara Menjalankan Secara Lokal
+##  Cara Menjalankan Secara Lokal
 
 1. **Clone repository ini:**
    ```bash
