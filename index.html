@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Werewolf Game Simulator</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        cinzel: ['Cinzel', 'serif'],
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    },
+                    colors: {
+                        moon: {
+                            100: '#e2e8f0',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                            950: '#030712',
+                        },
+                        werewolf: {
+                            red: '#991b1b',
+                            gold: '#d97706',
+                            purple: '#581c87'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background: radial-gradient(circle at top, #1e1b4b 0%, #0f172a 60%, #030712 100%);
+            min-height: 100vh;
+            color: #f8fafc;
+        }
+
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card-flip {
+            perspective: 1000px;
+        }
+
+        .card-inner {
+            transition: transform 0.6s;
+            transform-style: preserve-3d;
+        }
+
+        .card-flip.flipped .card-inner {
+            transform: rotateY(180deg);
+        }
+
+        .card-front, .card-back {
+            backface-visibility: hidden;
+        }
+
+        .card-back {
+            transform: rotateY(180deg);
+        }
+
+        /* Moon pulse effect */
+        @keyframes moonGlow {
+            0%, 100% { box-shadow: 0 0 20px rgba(217, 119, 6, 0.3); }
+            50% { box-shadow: 0 0 45px rgba(217, 119, 6, 0.6); }
+        }
+
+        .moon-glow {
+            animation: moonGlow 4s infinite ease-in-out;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(217, 119, 6, 0.4);
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen justify-between p-3 sm:p-6 select-none">
+
+    <!-- Header / Navbar -->
+    <header class="max-w-4xl w-full mx-auto flex items-center justify-between pb-4 border-b border-slate-800">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-gradient-to-tr from-amber-600 to-indigo-900 flex items-center justify-center shadow-lg border border-amber-500/30">
+                <i class="fa-solid font-bold text-amber-300 text-xl fa-shield-halved"></i>
+            </div>
+            <div>
+                <h1 class="font-cinzel font-bold text-xl sm:text-2xl tracking-wider text-amber-200">WEREWOLF</h1>
+                <p class="text-xs text-slate-400">Interactive Game Simulator</p>
+            </div>
+        </div>
+        <div id="game-status-badge" class="hidden px-3 py-1 rounded-full text-xs font-semibold glass-panel border border-amber-500/30 text-amber-300">
+            Phase: Lobby
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="max-w-4xl w-full mx-auto my-auto py-6">
+
+        <!-- 1. LOBBY & SETUP SCREEN -->
+        <section id="screen-lobby" class="glass-panel p-6 sm:p-8 rounded-2xl shadow-2xl space-y-6">
+            <div class="text-center space-y-2">
+                <div class="inline-block p-4 rounded-full bg-indigo-950/80 border border-amber-500/40 mb-2 moon-glow">
+                    <i class="fa-solid fa-wolf-pack-white text-4xl text-amber-400"></i>
+                </div>
+                <h2 class="font-cinzel text-2xl sm:text-3xl font-bold text-slate-100">Lobby Permainan</h2>
+                <p class="text-slate-400 text-sm max-w-md mx-auto">Atur opsi permainan dan rasakan sensasi berburu Werewolf langsung di browser kamu!</p>
+            </div>
+
+            <!-- Game Mode Selector -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-lg mx-auto">
+                <button onclick="setGameMode('ai')" id="btn-mode-ai" class="p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 border-amber-500 bg-amber-500/10 text-amber-200">
+                    <i class="fa-solid fa-robot text-2xl"></i>
+                    <span class="font-bold text-sm">Vs Bot AI (Single Player)</span>
+                    <span class="text-xs text-slate-400 text-center">Kamu bermain bersama bot pintar secara otomatis</span>
+                </button>
+                <button onclick="setGameMode('pass')" id="btn-mode-pass" class="p-4 rounded-xl border-2 border-slate-700 bg-slate-800/40 hover:border-slate-500 transition-all flex flex-col items-center gap-2 text-slate-300">
+                    <i class="fa-solid fa-users text-2xl"></i>
+                    <span class="font-bold text-sm">Pass & Play (Lokal Party)</span>
+                    <span class="text-xs text-slate-400 text-center">Main bareng teman di 1 HP/Laptop bergantian</span>
+                </button>
+            </div>
+
+            <!-- Settings Form -->
+            <div class="space-y-4 max-w-lg mx-auto pt-2">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Nama Pemain Kamu</label>
+                    <input type="text" id="input-player-name" value="Rafi (Player 1)" class="w-full px-4 py-2.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-100 focus:outline-none focus:border-amber-500 transition-colors text-sm">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">
+                        <span>Jumlah Pemain Total</span>
+                        <span id="player-count-label" class="text-amber-400 font-bold">6 Pemain</span>
+                    </div>
+                    <input type="range" id="input-player-count" min="4" max="10" value="6" oninput="updatePlayerCountLabel(this.value)" class="w-full accent-amber-500 cursor-pointer">
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-1">
+                        <span>4 (Cepat)</span>
+                        <span>6 (Standar)</span>
+                        <span>10 (Rame)</span>
+                    </div>
+                </div>
+
+                <!-- Roles Distribution Preview -->
+                <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-2">
+                    <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider block">Komposisi Peran:</span>
+                    <div id="roles-preview" class="flex flex-wrap gap-2 text-xs">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="startGame()" class="w-full max-w-lg mx-auto block py-3.5 px-6 rounded-xl font-bold bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 shadow-lg shadow-amber-600/20 transition-all transform active:scale-95 text-center">
+                <i class="fa-solid fa-play mr-2"></i> Mulai Game Sekarang
+            </button>
+        </section>
+
+        <!-- 2. ROLE REVEAL SCREEN -->
+        <section id="screen-reveal" class="hidden glass-panel p-6 sm:p-8 rounded-2xl shadow-2xl space-y-6 text-center max-w-lg mx-auto">
+            <h2 class="font-cinzel text-xl sm:text-2xl font-bold text-amber-300" id="reveal-title">Peran Rahasia Kamu</h2>
+            <p class="text-xs text-slate-400" id="reveal-subtitle">Klik kartu di bawah ini untuk melihat peran rahasiamu. Pastikan tidak ada orang lain yang melihat!</p>
+
+            <!-- Flip Card Container -->
+            <div class="card-flip w-60 h-80 mx-auto cursor-pointer" onclick="toggleCardFlip()">
+                <div id="card-inner" class="card-inner w-full h-full relative rounded-2xl shadow-2xl">
+                    <!-- Front Card (Hidden) -->
+                    <div class="card-front absolute inset-0 w-full h-full bg-gradient-to-b from-indigo-900 to-slate-900 border-2 border-amber-500/40 rounded-2xl flex flex-col items-center justify-center p-6 space-y-4">
+                        <i class="fa-solid fa-eye-slash text-4xl text-amber-400"></i>
+                        <span class="font-cinzel font-bold text-sm tracking-widest text-slate-200">Rahasiamu</span>
+                        <p class="text-[11px] text-slate-400">Tekan kartu untuk membuka</p>
+                    </div>
+
+                    <!-- Back Card (Role Details) -->
+                    <div id="card-back-bg" class="card-back absolute inset-0 w-full h-full rounded-2xl border-2 flex flex-col items-center justify-between p-6 bg-slate-900 border-amber-500">
+                        <div id="role-icon-box" class="w-16 h-16 rounded-full flex items-center justify-center text-3xl my-auto">
+                            <!-- Dynamic Role Icon -->
+                        </div>
+                        <div>
+                            <h3 id="role-name-text" class="font-cinzel font-bold text-xl uppercase tracking-wider mb-1">ROLE NAME</h3>
+                            <p id="role-desc-text" class="text-xs text-slate-300 leading-relaxed">Role description goes here...</p>
+                        </div>
+                        <span class="text-[10px] text-amber-400/80 mt-2">Tekan kembali untuk menutup</span>
+                    </div>
+                </div>
+            </div>
+
+            <button id="btn-next-reveal" onclick="nextRevealOrStartNight()" class="w-full py-3 px-6 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all">
+                Lanjut ke Fase Malam <i class="fa-solid fa-moon ml-2"></i>
+            </button>
+        </section>
+
+        <!-- 3. GAMEPLAY SCREEN (NIGHT & DAY) -->
+        <section id="screen-game" class="hidden space-y-6">
+            
+            <!-- Dynamic Phase Banner -->
+            <div id="phase-header" class="glass-panel p-4 rounded-xl border border-indigo-500/30 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div id="phase-icon" class="w-10 h-10 rounded-lg bg-indigo-900 text-indigo-300 flex items-center justify-center text-xl">
+                        <i class="fa-solid fa-moon"></i>
+                    </div>
+                    <div>
+                        <h3 id="phase-title" class="font-cinzel font-bold text-lg text-slate-100">Fase Malam Hari</h3>
+                        <p id="phase-subtitle" class="text-xs text-slate-400">Werewolf sedang memilih mangsanya...</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span id="day-counter" class="text-xs font-bold text-amber-400 block">Hari #1</span>
+                    <span id="living-counter" class="text-[11px] text-slate-400">6 Pemain Hidup</span>
+                </div>
+            </div>
+
+            <!-- Game Arena Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                <!-- Players List & Selection -->
+                <div class="md:col-span-2 glass-panel p-5 rounded-2xl space-y-4">
+                    <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                        <span>Daftar Pemain</span>
+                        <span id="action-hint" class="text-amber-400 font-normal">Pilih target kamu</span>
+                    </h4>
+
+                    <div id="players-grid" class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <!-- Dynamic Player Cards -->
+                    </div>
+
+                    <!-- Action Confirm Button -->
+                    <button id="btn-confirm-action" onclick="submitNightAction()" class="w-full py-3 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all hidden">
+                        Konfirmasi Pilihan
+                    </button>
+                </div>
+
+                <!-- Game Logs & Chat Feed -->
+                <div class="glass-panel p-5 rounded-2xl space-y-3 flex flex-col justify-between h-80 md:h-auto">
+                    <h4 class="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                        <span class="flex items-center gap-2"><i class="fa-solid fa-comments text-amber-500"></i> Diskusi & Catatan</span>
+                        <span id="voice-status" class="text-[10px] text-red-400 font-bold animate-pulse hidden">🎙️ Merekam...</span>
+                    </h4>
+                    
+                    <div id="game-logs" class="flex-1 overflow-y-auto space-y-2 pr-1 text-xs text-slate-300 min-h-[140px] max-h-[220px]">
+                        <!-- Game Events logged here -->
+                    </div>
+
+                    <!-- Discussion Text & Voice Chat Controls -->
+                    <div id="chat-input-container" class="space-y-2 pt-2 border-t border-slate-800">
+                        <div class="flex gap-2">
+                            <input type="text" id="input-chat-msg" placeholder="Ketik argumen/diskusi..." onkeydown="if(event.key==='Enter') sendChatMessage()" class="flex-1 px-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-slate-100 focus:outline-none focus:border-amber-500">
+                            <button onclick="sendChatMessage()" class="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold rounded-lg text-xs transition-all">
+                                <i class="fa-solid fa-paper-plane"></i>
+                            </button>
+                        </div>
+                        <button id="btn-voice-record" onmousedown="startVoiceRecord()" onmouseup="stopVoiceRecord()" ontouchstart="startVoiceRecord(event)" ontouchend="stopVoiceRecord(event)" class="w-full py-1.5 px-3 rounded-lg bg-red-950/60 hover:bg-red-900/80 border border-red-600/50 text-red-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all active:scale-95">
+                            <i class="fa-solid fa-microphone"></i> <span>Tahan untuk Rekam Voice Chat</span>
+                        </button>
+                    </div>
+
+                    <div id="sound-controls" class="pt-2 border-t border-slate-800 flex justify-between items-center text-xs text-slate-500">
+                        <span>Audio SFX</span>
+                        <button onclick="toggleAudio()" id="btn-audio-toggle" class="text-amber-400 hover:underline">
+                            <i class="fa-solid fa-volume-high"></i> Aktif
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- 4. GAME OVER SCREEN -->
+        <section id="screen-gameover" class="hidden glass-panel p-8 rounded-2xl text-center space-y-6 max-w-lg mx-auto">
+            <div id="gameover-icon-box" class="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl shadow-2xl">
+                <!-- Icon -->
+            </div>
+
+            <div>
+                <h2 id="gameover-winner-title" class="font-cinzel text-2xl font-bold tracking-wider">KEMENANGAN VILLAGER!</h2>
+                <p id="gameover-desc" class="text-sm text-slate-400 mt-1">Semua Werewolf telah berhasil dieliminasi!</p>
+            </div>
+
+            <!-- Role Reveal List -->
+            <div class="bg-slate-900/80 p-4 rounded-xl border border-slate-800 space-y-2 text-left">
+                <h4 class="text-xs font-semibold text-slate-400 uppercase tracking-wider border-b border-slate-800 pb-2">Peran Semua Pemain:</h4>
+                <div id="final-roles-list" class="space-y-1.5 text-xs">
+                    <!-- Populated by JS -->
+                </div>
+            </div>
+
+            <button onclick="resetToLobby()" class="w-full py-3 px-6 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all">
+                <i class="fa-solid fa-rotate-right mr-2"></i> Main Lagi
+            </button>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="max-w-4xl w-full mx-auto text-center pt-4 border-t border-slate-800 text-slate-500 text-xs">
+        Werewolf Party Web Engine &bull; Interactive Simulator
+    </footer>
+
+    <!-- Audio Web API Synth Generator (No external audio files required!) -->
+    <script>
+        // Web Audio API Sound System
+        let audioEnabled = true;
+        let audioCtx = null;
+
+        function getAudioContext() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioCtx;
+        }
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            try {
+                const ctx = getAudioContext();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                const now = ctx.currentTime;
+
+                if (type === 'click') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(600, now);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+                    osc.start(now);
+                    osc.stop(now + 0.08);
+                } else if (type === 'night') {
+                    // Low spooky pitch drop
+                    osc.type = 'sawtooth';
+                    osc.frequency.setValueAtTime(150, now);
+                    osc.frequency.exponentialRampToValueAtTime(40, now + 0.8);
+                    gain.gain.setValueAtTime(0.15, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+                    osc.start(now);
+                    osc.stop(now + 0.8);
+                } else if (type === 'day') {
+                    // Bright chime
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, now);
+                    osc.frequency.setValueAtTime(880, now + 0.15);
+                    gain.gain.setValueAtTime(0.1, now);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+                    osc.start(now);
+                    osc.stop(now + 0.5);
+                } else if (type === 'victory') {
+                    // Major triad chord
+                    [523.25, 659.25, 783.99].forEach((freq, idx) => {
+                        const o = ctx.createOscillator();
+                        const g = ctx.createGain();
+                        o.type = 'sine';
+                        o.frequency.setValueAtTime(freq, now + idx * 0.1);
+                        g.connect(ctx.destination);
+                        g.gain.setValueAtTime(0.1, now + idx * 0.1);
+                        g.gain.exponentialRampToValueAtTime(0.001, now + 0.8 + idx * 0.1);
+                        o.start(now + idx * 0.1);
+                        o.stop(now + 0.8 + idx * 0.1);
+                    });
+                }
+            } catch (e) {
+                console.log('Audio error:', e);
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            document.getElementById('btn-audio-toggle').innerHTML = audioEnabled ? 
+                '<i class="fa-solid fa-volume-high"></i> Aktif' : 
+                '<i class="fa-solid fa-volume-xmark"></i> Mute';
+        }
+    </script>
+
+    <!-- Game Logic Engine Script -->
+    <script>
+        // Game Constants & Roles Definitions
+        const ROLES = {
+            WEREWOLF: {
+                name: 'Werewolf',
+                team: 'werewolf',
+                icon: 'fa-solid fa-wolf-pack-white',
+                color: 'text-red-500',
+                bgColor: 'bg-red-950/80 border-red-600',
+                desc: 'Mangsa warga desa di malam hari tanpa terdeteksi!'
+            },
+            SEER: {
+                name: 'Seer (Penerawang)',
+                team: 'villager',
+                icon: 'fa-solid fa-eye',
+                color: 'text-purple-400',
+                bgColor: 'bg-purple-950/80 border-purple-600',
+                desc: 'Terawang peran 1 pemain di malam hari untuk mencari Werewolf.'
+            },
+            DOCTOR: {
+                name: 'Doctor (Dokter)',
+                team: 'villager',
+                icon: 'fa-solid fa-user-doctor',
+                color: 'text-emerald-400',
+                bgColor: 'bg-emerald-950/80 border-emerald-600',
+                desc: 'Lindungi 1 pemain dari serangan Werewolf di malam hari.'
+            },
+            VILLAGER: {
+                name: 'Villager (Warga)',
+                team: 'villager',
+                icon: 'fa-solid fa-house-chimney-user',
+                color: 'text-amber-300',
+                bgColor: 'bg-amber-950/80 border-amber-600',
+                desc: 'Gunakan logika & musyawarah di siang hari untuk mengeksekusi Werewolf.'
+            }
+        };
+
+        // Game State Variables
+        let gameState = {
+            mode: 'ai', // 'ai' or 'pass'
+            playerCount: 6,
+            dayNumber: 1,
+            phase: 'LOBBY', // LOBBY, REVEAL, NIGHT, DAY_DISCUSSION, DAY_VOTING, GAMEOVER
+            players: [],
+            humanPlayerId: 0,
+            revealIndex: 0,
+            nightActions: {
+                targetKill: null,
+                targetHeal: null,
+                targetSeer: null
+            },
+            selectedTargetId: null
+        };
+
+        // Initialize Lobby View
+        function initLobby() {
+            updatePlayerCountLabel(document.getElementById('input-player-count').value);
+        }
+
+        function setGameMode(mode) {
+            playSound('click');
+            gameState.mode = mode;
+            const btnAi = document.getElementById('btn-mode-ai');
+            const btnPass = document.getElementById('btn-mode-pass');
+
+            if (mode === 'ai') {
+                btnAi.className = 'p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 border-amber-500 bg-amber-500/10 text-amber-200';
+                btnPass.className = 'p-4 rounded-xl border-2 border-slate-700 bg-slate-800/40 hover:border-slate-500 transition-all flex flex-col items-center gap-2 text-slate-300';
+            } else {
+                btnPass.className = 'p-4 rounded-xl border-2 transition-all flex flex-col items-center gap-2 border-amber-500 bg-amber-500/10 text-amber-200';
+                btnAi.className = 'p-4 rounded-xl border-2 border-slate-700 bg-slate-800/40 hover:border-slate-500 transition-all flex flex-col items-center gap-2 text-slate-300';
+            }
+        }
+
+        function updatePlayerCountLabel(val) {
+            gameState.playerCount = parseInt(val);
+            document.getElementById('player-count-label').innerText = `${val} Pemain`;
+
+            // Calculate Role Composition
+            let werewolfs = Math.max(1, Math.floor(val / 4));
+            let seers = 1;
+            let doctors = val >= 6 ? 1 : 0;
+            let villagers = val - (werewolfs + seers + doctors);
+
+            const previewBox = document.getElementById('roles-preview');
+            previewBox.innerHTML = `
+                <span class="px-2.5 py-1 rounded-md bg-red-900/60 text-red-300 border border-red-700/50">🐺 ${werewolfs} Werewolf</span>
+                <span class="px-2.5 py-1 rounded-md bg-purple-900/60 text-purple-300 border border-purple-700/50">🔮 ${seers} Seer</span>
+                ${doctors ? `<span class="px-2.5 py-1 rounded-md bg-emerald-900/60 text-emerald-300 border border-emerald-700/50">🩺 ${doctors} Doctor</span>` : ''}
+                <span class="px-2.5 py-1 rounded-md bg-amber-900/60 text-amber-300 border border-amber-700/50">👨‍🌾 ${villagers} Villager</span>
+            `;
+        }
+
+        // Generate Players Array & Assign Roles
+        function startGame() {
+            playSound('click');
+            const humanName = document.getElementById('input-player-name').value.trim() || 'Player 1';
+            const count = gameState.playerCount;
+
+            // Generate Role Deck
+            let werewolfsCount = Math.max(1, Math.floor(count / 4));
+            let seersCount = 1;
+            let doctorsCount = count >= 6 ? 1 : 0;
+            let villagersCount = count - (werewolfsCount + seersCount + doctorsCount);
+
+            let deck = [];
+            for (let i = 0; i < werewolfsCount; i++) deck.push(ROLES.WEREWOLF);
+            for (let i = 0; i < seersCount; i++) deck.push(ROLES.SEER);
+            for (let i = 0; i < doctorsCount; i++) deck.push(ROLES.DOCTOR);
+            for (let i = 0; i < villagersCount; i++) deck.push(ROLES.VILLAGER);
+
+            // Shuffle Deck
+            deck.sort(() => Math.random() - 0.5);
+
+            // Bot Name List
+            const botNames = ['Budi', 'Siti', 'Agus', 'Dewi', 'Eko', 'Rina', 'Doni', 'Maya', 'Hadi', 'Lani'];
+            botNames.sort(() => Math.random() - 0.5);
+
+            gameState.players = [];
+            for (let i = 0; i < count; i++) {
+                let isHuman = false;
+                let name = '';
+
+                if (gameState.mode === 'ai') {
+                    isHuman = (i === 0);
+                    name = isHuman ? humanName : `Bot ${botNames[i - 1]}`;
+                } else {
+                    name = (i === 0) ? humanName : `Pemain ${i + 1}`;
+                    isHuman = true; // In pass & play, all are humans
+                }
+
+                gameState.players.push({
+                    id: i,
+                    name: name,
+                    isHuman: isHuman,
+                    role: deck[i],
+                    isAlive: true,
+                    votesReceived: 0
+                });
+            }
+
+            gameState.dayNumber = 1;
+            gameState.revealIndex = 0;
+
+            // Switch to Reveal Screen
+            document.getElementById('screen-lobby').classList.add('hidden');
+            document.getElementById('screen-reveal').classList.remove('hidden');
+            updateBadge('Fase Pembagian Peran', 'bg-purple-900/60 text-purple-300');
+
+            showRevealForPlayer(0);
+        }
+
+        // Role Reveal Logic
+        function showRevealForPlayer(index) {
+            const player = gameState.players[index];
+            document.getElementById('reveal-title').innerText = `Peran Rahasia: ${player.name}`;
+            document.getElementById('card-inner').parentElement.classList.remove('flipped');
+
+            // Setup card back
+            const cardBack = document.getElementById('card-back-bg');
+            const iconBox = document.getElementById('role-icon-box');
+            
+            cardBack.className = `card-back absolute inset-0 w-full h-full rounded-2xl border-2 flex flex-col items-center justify-between p-6 ${player.role.bgColor}`;
+            iconBox.className = `w-16 h-16 rounded-full flex items-center justify-center text-3xl my-auto bg-slate-900 ${player.role.color}`;
+            iconBox.innerHTML = `<i class="${player.role.icon}"></i>`;
+
+            document.getElementById('role-name-text').innerText = player.role.name;
+            document.getElementById('role-name-text').className = `font-cinzel font-bold text-xl uppercase tracking-wider mb-1 ${player.role.color}`;
+            document.getElementById('role-desc-text').innerText = player.role.desc;
+
+            const btnNext = document.getElementById('btn-next-reveal');
+            if (gameState.mode === 'ai' || index === gameState.players.length - 1) {
+                btnNext.innerHTML = `Mulai Fase Malam Hari <i class="fa-solid fa-moon ml-2"></i>`;
+            } else {
+                btnNext.innerHTML = `Lanjut ke Pemain Berikutnya (${index + 2}) <i class="fa-solid fa-arrow-right ml-2"></i>`;
+            }
+        }
+
+        function toggleCardFlip() {
+            playSound('click');
+            const card = document.getElementById('card-inner').parentElement;
+            card.classList.toggle('flipped');
+        }
+
+        function nextRevealOrStartNight() {
+            playSound('click');
+            if (gameState.mode === 'pass' && gameState.revealIndex < gameState.players.length - 1) {
+                gameState.revealIndex++;
+                showRevealForPlayer(gameState.revealIndex);
+            } else {
+                // All revealed, transition to Night
+                document.getElementById('screen-reveal').classList.add('hidden');
+                document.getElementById('screen-game').classList.remove('hidden');
+                startNightPhase();
+            }
+        }
+
+        // Game Play Loop: NIGHT PHASE
+        function startNightPhase() {
+            gameState.phase = 'NIGHT';
+            playSound('night');
+            updateBadge(`Malam #${gameState.dayNumber}`, 'bg-indigo-950 text-indigo-300');
+
+            // Reset night selections
+            gameState.nightActions = { targetKill: null, targetHeal: null, targetSeer: null };
+            gameState.selectedTargetId = null;
+
+            // UI Updates
+            document.getElementById('phase-icon').className = 'w-10 h-10 rounded-lg bg-indigo-950 text-indigo-400 flex items-center justify-center text-xl border border-indigo-700/50';
+            document.getElementById('phase-icon').innerHTML = '<i class="fa-solid fa-moon"></i>';
+            document.getElementById('phase-title').innerText = `Malam Hari #${gameState.dayNumber}`;
+            document.getElementById('phase-subtitle').innerText = 'Suasana gelap gulita. Aksi malam hari dimulai...';
+
+            logEvent(`🌙 Malam ke-${gameState.dayNumber} telah tiba. Seluruh warga tertidur lelap...`, 'text-indigo-300 font-semibold');
+
+            renderPlayersList();
+
+            // Determine what prompt to show human player
+            const human = gameState.players[0];
+            const confirmBtn = document.getElementById('btn-confirm-action');
+
+            if (!human.isAlive) {
+                document.getElementById('action-hint').innerText = 'Kamu telah tereliminasi. Mengamati malam...';
+                confirmBtn.classList.add('hidden');
+                setTimeout(processAiNightActions, 2000);
+            } else if (human.role === ROLES.WEREWOLF) {
+                document.getElementById('action-hint').innerText = 'Pilih mangsa yang ingin kamu eliminasi:';
+                confirmBtn.classList.remove('hidden');
+            } else if (human.role === ROLES.SEER) {
+                document.getElementById('action-hint').innerText = 'Pilih pemain yang ingin diterawang perannya:';
+                confirmBtn.classList.remove('hidden');
+            } else if (human.role === ROLES.DOCTOR) {
+                document.getElementById('action-hint').innerText = 'Pilih pemain yang ingin kamu lindungi:';
+                confirmBtn.classList.remove('hidden');
+            } else {
+                // Villager has no night action
+                document.getElementById('action-hint').innerText = 'Kamu warga biasa. Tidur lelap di malam hari...';
+                confirmBtn.classList.add('hidden');
+                setTimeout(processAiNightActions, 2000);
+            }
+        }
+
+        function renderPlayersList() {
+            const grid = document.getElementById('players-grid');
+            grid.innerHTML = '';
+
+            const aliveCount = gameState.players.filter(p => p.isAlive).length;
+            document.getElementById('day-counter').innerText = `Hari #${gameState.dayNumber}`;
+            document.getElementById('living-counter').innerText = `${aliveCount} Pemain Hidup`;
+
+            // Update status kontrol chat jika pemain manusia sudah mati
+            updateChatControlsState();
+
+            gameState.players.forEach(player => {
+                const isSelected = gameState.selectedTargetId === player.id;
+                const isDead = !player.isAlive;
+
+                let borderStyle = isSelected ? 'border-amber-400 bg-amber-500/20 shadow-lg' : 'border-slate-800 bg-slate-900/60 hover:border-slate-700';
+                if (isDead) borderStyle = 'border-slate-900 bg-slate-950/40 opacity-40 cursor-not-allowed';
+
+                const card = document.createElement('div');
+                card.className = `p-3 rounded-xl border transition-all ${borderStyle} flex flex-col justify-between cursor-pointer`;
+                
+                if (!isDead && gameState.phase === 'NIGHT') {
+                    card.onclick = () => selectTargetPlayer(player.id);
+                } else if (!isDead && gameState.phase === 'DAY_VOTING') {
+                    card.onclick = () => selectTargetPlayer(player.id);
+                }
+
+                card.innerHTML = `
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="font-bold text-xs ${isDead ? 'line-through text-slate-500' : 'text-slate-200'}">${player.name}</span>
+                        ${player.id === 0 ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 font-semibold">Kamu</span>' : ''}
+                    </div>
+                    <div class="flex items-center justify-between text-[11px] text-slate-400">
+                        <span>${isDead ? '💀 Mati' : '❤️ Hidup'}</span>
+                        ${gameState.phase === 'DAY_VOTING' && player.votesReceived > 0 ? `<span class="text-red-400 font-bold">${player.votesReceived} Vote</span>` : ''}
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        // Kunci/Buka Fitur Chat Berdasarkan Status Hidup Pemain
+        function updateChatControlsState() {
+            const human = gameState.players[0];
+            const inputMsg = document.getElementById('input-chat-msg');
+            const btnVoice = document.getElementById('btn-voice-record');
+            
+            if (human && !human.isAlive) {
+                if (inputMsg) {
+                    inputMsg.disabled = true;
+                    inputMsg.value = '';
+                    inputMsg.placeholder = '👻 Kamu sudah mati (Mode Arwah)...';
+                    inputMsg.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+                if (btnVoice) {
+                    btnVoice.disabled = true;
+                    btnVoice.classList.add('opacity-50', 'cursor-not-allowed');
+                }
+            } else {
+                if (inputMsg) {
+                    inputMsg.disabled = false;
+                    inputMsg.placeholder = 'Ketik argumen/diskusi...';
+                    inputMsg.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+                if (btnVoice) {
+                    btnVoice.disabled = false;
+                    btnVoice.classList.remove('opacity-50', 'cursor-not-allowed');
+                }
+            }
+        }
+            setTimeout(() => {
+                if (isTie || !lynchedPlayer) {
+                    logEvent(`⚖️ Hasil Voting Seri! Tidak ada warga yang dieksekusi hari ini.`, 'text-slate-300 font-semibold');
+                } else {
+                    lynchedPlayer.isAlive = false;
+                    const isWerewolf = lynchedPlayer.role.team === 'werewolf';
+                    const teamBadge = isWerewolf ? '🔴 TIM WEREWOLF' : '🟢 TIM VILLAGER';
+                    
+                    logEvent(`----------------------------------------`, 'text-slate-700');
+                    logEvent(`🔥 HASIL VOTING: ${lynchedPlayer.name} dieksekusi warga (${highestVotes} Vote)!`, 'text-red-400 font-bold text-sm');
+                    
+                    // Pengumuman Sistem yang Jelas tentang Peran Yang Di-vote
+                    logEvent(`📣 PEMBERITAHUAN SISTEM: Peran Asli ${lynchedPlayer.name} adalah ${lynchedPlayer.role.name.toUpperCase()} [${teamBadge}]`, isWerewolf ? 'text-red-300 font-bold bg-red-950/80 p-2.5 rounded-lg border border-red-600 shadow-md' : 'text-amber-300 font-bold bg-amber-950/80 p-2.5 rounded-lg border border-amber-600 shadow-md');
+                    
+                    if (isWerewolf) {
+                        logEvent(`🎉 KEMENANGAN KECIL! Warga berhasil meng-eliminasi 1 Werewolf!`, 'text-emerald-400 font-bold');
+                    } else {
+                        logEvent(`😱 SALAH SASARAN! Warga salah mengeksekusi seorang ${lynchedPlayer.role.name} yang polos!`, 'text-red-400 font-bold');
+                    }
+                    logEvent(`----------------------------------------`, 'text-slate-700');
+                }
+
+                renderPlayersList();
+
+                // Check Win condition after voting
+                if (!checkWinCondition()) {
+                    gameState.dayNumber++;
+                    setTimeout(startNightPhase, 3000);
+                }
+            }, 1500);
+        }
+        function startVoiceRecord(e) {
+            if (e && e.type === 'touchstart') e.preventDefault();
+            
+            // Validasi Pemain Mati
+            const humanPlayer = gameState.players[0];
+            if (humanPlayer && !humanPlayer.isAlive) {
+                alert('👻 Kamu sudah tereliminasi (arwah) dan tidak dapat merekam voice chat!');
+                return;
+            }
+
+            if (!mediaRecorder) {
+                initVoiceRecorder().then(() => {
+                    if (mediaRecorder && mediaRecorder.state === 'inactive') {
+                        audioChunks = [];
+                        mediaRecorder.start();
+                        updateVoiceUI(true);
+                    }
+                });
+                return;
+            }
+            if (mediaRecorder.state === 'inactive') {
+                audioChunks = [];
+                mediaRecorder.start();
+                updateVoiceUI(true);
+            }
+        }
+
+        function stopVoiceRecord(e) {
+            if (e && e.type === 'touchend') e.preventDefault();
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                updateVoiceUI(false);
+            }
+        }
+
+        function updateVoiceUI(isRecording) {
+            const btn = document.getElementById('btn-voice-record');
+            const status = document.getElementById('voice-status');
+            if (isRecording) {
+                btn.className = 'w-full py-1.5 px-3 rounded-lg bg-red-600 text-white font-bold text-xs flex items-center justify-center gap-2 animate-pulse';
+                btn.innerHTML = '<i class="fa-solid fa-circle-dot"></i> <span>Merekam... Lepas untuk Kirim</span>';
+                if (status) status.classList.remove('hidden');
+            } else {
+                btn.className = 'w-full py-1.5 px-3 rounded-lg bg-red-950/60 hover:bg-red-900/80 border border-red-600/50 text-red-300 font-semibold text-xs flex items-center justify-center gap-2 transition-all active:scale-95';
+                btn.innerHTML = '<i class="fa-solid fa-microphone"></i> <span>Tahan untuk Rekam Voice Chat</span>';
+                if (status) status.classList.add('hidden');
+            }
+        }
+
+        function sendChatMessage() {
+            const input = document.getElementById('input-chat-msg');
+            const msg = input.value.trim();
+            if (!msg) return;
+
+            const currentPlayer = gameState.players[0] || { name: 'Pemain' };
+            
+            // Validasi Pemain Mati
+            if (!currentPlayer.isAlive) {
+                alert('👻 Pemain yang sudah tereliminasi (arwah) tidak dapat berdiskusi atau mengirim chat!');
+                input.value = '';
+                return;
+            }
+
+            logChatMessage(currentPlayer.name, msg);
+            input.value = '';
+        }
+
+        function logChatMessage(sender, text) {
+            const logsBox = document.getElementById('game-logs');
+            const entry = document.createElement('div');
+            entry.className = 'p-2 rounded bg-indigo-950/80 border border-indigo-700/50 text-xs text-slate-200 space-y-0.5';
+            entry.innerHTML = `
+                <div class="font-bold text-amber-300 text-[11px] flex justify-between">
+                    <span>💬 ${sender}</span>
+                    <span class="text-[9px] text-slate-400">Diskusi</span>
+                </div>
+                <p class="text-slate-200">${text.replace(/</g, "&lt;").replace(/>/g, "&gt;")}</p>
+            `;
+            logsBox.appendChild(entry);
+            logsBox.scrollTop = logsBox.scrollHeight;
+        }
+
+        function addVoiceNoteToChat(audioUrl) {
+            const currentPlayer = gameState.players[0] || { name: 'Pemain' };
+            const logsBox = document.getElementById('game-logs');
+            const entry = document.createElement('div');
+            entry.className = 'p-2 rounded bg-red-950/50 border border-red-700/50 text-xs text-slate-200 space-y-1';
+            entry.innerHTML = `
+                <div class="font-bold text-amber-300 text-[11px] flex items-center gap-1.5">
+                    <i class="fa-solid fa-microphone text-red-400"></i>
+                    <span>🎙️ Pesan Suara (${currentPlayer.name})</span>
+                </div>
+                <audio controls src="${audioUrl}" class="w-full h-8 mt-1 rounded"></audio>
+            `;
+            logsBox.appendChild(entry);
+            logsBox.scrollTop = logsBox.scrollHeight;
+        }
+
+        // Utility Helpers
+        function logEvent(text, colorClass = 'text-slate-300') {
+            const logsBox = document.getElementById('game-logs');
+            const entry = document.createElement('div');
+            entry.className = `p-2 rounded bg-slate-900/80 border border-slate-800/80 leading-relaxed ${colorClass}`;
+            entry.innerText = text;
+            logsBox.appendChild(entry);
+            logsBox.scrollTop = logsBox.scrollHeight;
+        }
+
+        function updateBadge(text, styleClass) {
+            const badge = document.getElementById('game-status-badge');
+            badge.classList.remove('hidden');
+            badge.className = `px-3 py-1 rounded-full text-xs font-semibold border border-amber-500/30 ${styleClass}`;
+            badge.innerText = text;
+        }
+
+        // Initialize on Load
+        window.onload = function() {
+            initLobby();
+        }
+    </script>
+</body>
+</html>
