@@ -241,7 +241,7 @@
                     </div>
 
                     <!-- Action Confirm Button -->
-                    <button id="btn-confirm-action" onclick="submitNightAction()" class="w-full py-3 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all hidden">
+                    <button id="btn-confirm-action" onclick="submitCurrentAction()" class="w-full py-3 rounded-xl font-bold bg-amber-500 hover:bg-amber-400 text-slate-950 transition-all hidden">
                         Konfirmasi Pilihan
                     </button>
                 </div>
@@ -313,9 +313,8 @@
         Werewolf Party Web Engine &bull; Interactive Simulator
     </footer>
 
-    <!-- Audio Web API Synth Generator (No external audio files required!) -->
+    <!-- Audio Web API Synth Generator -->
     <script>
-        // Web Audio API Sound System
         let audioEnabled = true;
         let audioCtx = null;
 
@@ -345,7 +344,6 @@
                     osc.start(now);
                     osc.stop(now + 0.08);
                 } else if (type === 'night') {
-                    // Low spooky pitch drop
                     osc.type = 'sawtooth';
                     osc.frequency.setValueAtTime(150, now);
                     osc.frequency.exponentialRampToValueAtTime(40, now + 0.8);
@@ -354,7 +352,6 @@
                     osc.start(now);
                     osc.stop(now + 0.8);
                 } else if (type === 'day') {
-                    // Bright chime
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(440, now);
                     osc.frequency.setValueAtTime(880, now + 0.15);
@@ -363,7 +360,6 @@
                     osc.start(now);
                     osc.stop(now + 0.5);
                 } else if (type === 'victory') {
-                    // Major triad chord
                     [523.25, 659.25, 783.99].forEach((freq, idx) => {
                         const o = ctx.createOscillator();
                         const g = ctx.createGain();
@@ -391,7 +387,6 @@
 
     <!-- Game Logic Engine Script -->
     <script>
-        // Game Constants & Roles Definitions
         const ROLES = {
             WEREWOLF: {
                 name: 'Werewolf',
@@ -427,7 +422,6 @@
             }
         };
 
-        // Game State Variables
         let gameState = {
             mode: 'ai', // 'ai' or 'pass'
             playerCount: 6,
@@ -444,7 +438,6 @@
             selectedTargetId: null
         };
 
-        // Initialize Lobby View
         function initLobby() {
             updatePlayerCountLabel(document.getElementById('input-player-count').value);
         }
@@ -468,7 +461,6 @@
             gameState.playerCount = parseInt(val);
             document.getElementById('player-count-label').innerText = `${val} Pemain`;
 
-            // Calculate Role Composition
             let werewolfs = Math.max(1, Math.floor(val / 4));
             let seers = 1;
             let doctors = val >= 6 ? 1 : 0;
@@ -483,13 +475,11 @@
             `;
         }
 
-        // Generate Players Array & Assign Roles
         function startGame() {
             playSound('click');
             const humanName = document.getElementById('input-player-name').value.trim() || 'Player 1';
             const count = gameState.playerCount;
 
-            // Generate Role Deck
             let werewolfsCount = Math.max(1, Math.floor(count / 4));
             let seersCount = 1;
             let doctorsCount = count >= 6 ? 1 : 0;
@@ -501,25 +491,15 @@
             for (let i = 0; i < doctorsCount; i++) deck.push(ROLES.DOCTOR);
             for (let i = 0; i < villagersCount; i++) deck.push(ROLES.VILLAGER);
 
-            // Shuffle Deck
             deck.sort(() => Math.random() - 0.5);
 
-            // Bot Name List
             const botNames = ['Budi', 'Siti', 'Agus', 'Dewi', 'Eko', 'Rina', 'Doni', 'Maya', 'Hadi', 'Lani'];
             botNames.sort(() => Math.random() - 0.5);
 
             gameState.players = [];
             for (let i = 0; i < count; i++) {
-                let isHuman = false;
-                let name = '';
-
-                if (gameState.mode === 'ai') {
-                    isHuman = (i === 0);
-                    name = isHuman ? humanName : `Bot ${botNames[i - 1]}`;
-                } else {
-                    name = (i === 0) ? humanName : `Pemain ${i + 1}`;
-                    isHuman = true; // In pass & play, all are humans
-                }
+                let isHuman = (gameState.mode === 'ai') ? (i === 0) : true;
+                let name = (i === 0) ? humanName : (gameState.mode === 'ai' ? `Bot ${botNames[i - 1]}` : `Pemain ${i + 1}`);
 
                 gameState.players.push({
                     id: i,
@@ -534,21 +514,18 @@
             gameState.dayNumber = 1;
             gameState.revealIndex = 0;
 
-            // Switch to Reveal Screen
             document.getElementById('screen-lobby').classList.add('hidden');
             document.getElementById('screen-reveal').classList.remove('hidden');
-            updateBadge('Fase Pembagian Peran', 'bg-purple-900/60 text-purple-300');
+            updateBadge('Pembagian Peran', 'bg-purple-900/60 text-purple-300');
 
             showRevealForPlayer(0);
         }
 
-        // Role Reveal Logic
         function showRevealForPlayer(index) {
             const player = gameState.players[index];
             document.getElementById('reveal-title').innerText = `Peran Rahasia: ${player.name}`;
             document.getElementById('card-inner').parentElement.classList.remove('flipped');
 
-            // Setup card back
             const cardBack = document.getElementById('card-back-bg');
             const iconBox = document.getElementById('role-icon-box');
             
@@ -580,24 +557,20 @@
                 gameState.revealIndex++;
                 showRevealForPlayer(gameState.revealIndex);
             } else {
-                // All revealed, transition to Night
                 document.getElementById('screen-reveal').classList.add('hidden');
                 document.getElementById('screen-game').classList.remove('hidden');
                 startNightPhase();
             }
         }
 
-        // Game Play Loop: NIGHT PHASE
         function startNightPhase() {
             gameState.phase = 'NIGHT';
             playSound('night');
             updateBadge(`Malam #${gameState.dayNumber}`, 'bg-indigo-950 text-indigo-300');
 
-            // Reset night selections
             gameState.nightActions = { targetKill: null, targetHeal: null, targetSeer: null };
             gameState.selectedTargetId = null;
 
-            // UI Updates
             document.getElementById('phase-icon').className = 'w-10 h-10 rounded-lg bg-indigo-950 text-indigo-400 flex items-center justify-center text-xl border border-indigo-700/50';
             document.getElementById('phase-icon').innerHTML = '<i class="fa-solid fa-moon"></i>';
             document.getElementById('phase-title').innerText = `Malam Hari #${gameState.dayNumber}`;
@@ -607,7 +580,6 @@
 
             renderPlayersList();
 
-            // Determine what prompt to show human player
             const human = gameState.players[0];
             const confirmBtn = document.getElementById('btn-confirm-action');
 
@@ -617,19 +589,27 @@
                 setTimeout(processAiNightActions, 2000);
             } else if (human.role === ROLES.WEREWOLF) {
                 document.getElementById('action-hint').innerText = 'Pilih mangsa yang ingin kamu eliminasi:';
+                confirmBtn.innerText = 'Konfirmasi Pilihan';
                 confirmBtn.classList.remove('hidden');
             } else if (human.role === ROLES.SEER) {
                 document.getElementById('action-hint').innerText = 'Pilih pemain yang ingin diterawang perannya:';
+                confirmBtn.innerText = 'Konfirmasi Pilihan';
                 confirmBtn.classList.remove('hidden');
             } else if (human.role === ROLES.DOCTOR) {
                 document.getElementById('action-hint').innerText = 'Pilih pemain yang ingin kamu lindungi:';
+                confirmBtn.innerText = 'Konfirmasi Pilihan';
                 confirmBtn.classList.remove('hidden');
             } else {
-                // Villager has no night action
                 document.getElementById('action-hint').innerText = 'Kamu warga biasa. Tidur lelap di malam hari...';
                 confirmBtn.classList.add('hidden');
                 setTimeout(processAiNightActions, 2000);
             }
+        }
+
+        function selectTargetPlayer(id) {
+            playSound('click');
+            gameState.selectedTargetId = id;
+            renderPlayersList();
         }
 
         function renderPlayersList() {
@@ -640,7 +620,6 @@
             document.getElementById('day-counter').innerText = `Hari #${gameState.dayNumber}`;
             document.getElementById('living-counter').innerText = `${aliveCount} Pemain Hidup`;
 
-            // Update status kontrol chat jika pemain manusia sudah mati
             updateChatControlsState();
 
             gameState.players.forEach(player => {
@@ -653,9 +632,7 @@
                 const card = document.createElement('div');
                 card.className = `p-3 rounded-xl border transition-all ${borderStyle} flex flex-col justify-between cursor-pointer`;
                 
-                if (!isDead && gameState.phase === 'NIGHT') {
-                    card.onclick = () => selectTargetPlayer(player.id);
-                } else if (!isDead && gameState.phase === 'DAY_VOTING') {
+                if (!isDead && (gameState.phase === 'NIGHT' || gameState.phase === 'DAY_VOTING')) {
                     card.onclick = () => selectTargetPlayer(player.id);
                 }
 
@@ -673,7 +650,255 @@
             });
         }
 
-        // Kunci/Buka Fitur Chat Berdasarkan Status Hidup Pemain
+        function submitCurrentAction() {
+            playSound('click');
+            if (gameState.phase === 'NIGHT') {
+                submitNightAction();
+            } else if (gameState.phase === 'DAY_VOTING') {
+                submitDayVote();
+            }
+        }
+
+        function submitNightAction() {
+            if (gameState.selectedTargetId === null) {
+                alert('Pilih salah satu pemain terlebih dahulu!');
+                return;
+            }
+
+            const human = gameState.players[0];
+            const target = gameState.players[gameState.selectedTargetId];
+
+            if (human.role === ROLES.WEREWOLF) {
+                gameState.nightActions.targetKill = target.id;
+                logEvent(`🐺 Kamu memilih untuk memangsa ${target.name}.`, 'text-red-400 font-semibold');
+            } else if (human.role === ROLES.SEER) {
+                gameState.nightActions.targetSeer = target.id;
+                const isWerewolf = target.role.team === 'werewolf';
+                logEvent(`🔮 Hasil menerawang ${target.name}: Peran aslinya adalah ${target.role.name} (${isWerewolf ? '🔴 JAHAT' : '🟢 BAIK'}).`, 'text-purple-300 font-bold');
+            } else if (human.role === ROLES.DOCTOR) {
+                gameState.nightActions.targetHeal = target.id;
+                logEvent(`🩺 Kamu memilih untuk melindungi ${target.name} malam ini.`, 'text-emerald-400 font-semibold');
+            }
+
+            document.getElementById('btn-confirm-action').classList.add('hidden');
+            processAiNightActions();
+        }
+
+        function processAiNightActions() {
+            const alivePlayers = gameState.players.filter(p => p.isAlive);
+
+            // AI Werewolf action if human is not werewolf
+            if (gameState.nightActions.targetKill === null) {
+                const nonWerewolfs = alivePlayers.filter(p => p.role.team !== 'werewolf');
+                if (nonWerewolfs.length > 0) {
+                    const picked = nonWerewolfs[Math.floor(Math.random() * nonWerewolfs.length)];
+                    gameState.nightActions.targetKill = picked.id;
+                }
+            }
+
+            // AI Doctor action if human is not doctor
+            if (gameState.nightActions.targetHeal === null) {
+                const doctor = gameState.players.find(p => p.role === ROLES.DOCTOR && p.isAlive && !p.isHuman);
+                if (doctor && alivePlayers.length > 0) {
+                    const picked = alivePlayers[Math.floor(Math.random() * alivePlayers.length)];
+                    gameState.nightActions.targetHeal = picked.id;
+                }
+            }
+
+            setTimeout(startDayPhase, 1500);
+        }
+
+        function startDayPhase() {
+            gameState.phase = 'DAY_DISCUSSION';
+            playSound('day');
+            updateBadge(`Siang #${gameState.dayNumber}`, 'bg-amber-950 text-amber-300');
+
+            document.getElementById('phase-icon').className = 'w-10 h-10 rounded-lg bg-amber-950 text-amber-400 flex items-center justify-center text-xl border border-amber-700/50';
+            document.getElementById('phase-icon').innerHTML = '<i class="fa-solid fa-sun"></i>';
+            document.getElementById('phase-title').innerText = `Siang Hari #${gameState.dayNumber}`;
+            document.getElementById('phase-subtitle').innerText = 'Matahari terbit. Warga desa berkumpul untuk berdiskusi...';
+
+            logEvent(`☀️ Pagi hari tiba! Warga terbangun dan berkumpul di alun-alun desa.`, 'text-amber-300 font-semibold');
+
+            const victimId = gameState.nightActions.targetKill;
+            const healedId = gameState.nightActions.targetHeal;
+
+            if (victimId !== null && victimId !== healedId) {
+                const victim = gameState.players[victimId];
+                victim.isAlive = false;
+                logEvent(`💀 KABAR DUKA: ${victim.name} telah terbunuh secara misterius tadi malam!`, 'text-red-400 font-bold');
+            } else {
+                logEvent(`🛡️ KEJAIBAN: Malam berjalan tenang! Tidak ada warga yang menjadi korban serangan malam ini.`, 'text-emerald-400 font-bold');
+            }
+
+            renderPlayersList();
+
+            if (checkWinCondition()) return;
+
+            // Show Voting Button
+            const confirmBtn = document.getElementById('btn-confirm-action');
+            document.getElementById('action-hint').innerText = 'Sesi Diskusi Bebas. Klik tombol jika siap Voting:';
+            confirmBtn.innerText = 'Mulai Sesi Voting Eksekusi';
+            confirmBtn.classList.remove('hidden');
+            confirmBtn.onclick = startVotingPhase;
+        }
+
+        function startVotingPhase() {
+            gameState.phase = 'DAY_VOTING';
+            playSound('click');
+            updateBadge(`Voting #${gameState.dayNumber}`, 'bg-red-950 text-red-300');
+
+            gameState.players.forEach(p => p.votesReceived = 0);
+            gameState.selectedTargetId = null;
+
+            document.getElementById('action-hint').innerText = 'Pilih pemain yang dicurigai sebagai Werewolf untuk dieksekusi:';
+            const confirmBtn = document.getElementById('btn-confirm-action');
+            confirmBtn.innerText = 'Kirim Vote Eksekusi';
+            confirmBtn.onclick = submitCurrentAction;
+
+            logEvent(`🗳️ Sesi Voting Eksekusi telah dibuka! Silakan pilih tersangka utama kamu.`, 'text-amber-400 font-bold');
+            renderPlayersList();
+        }
+
+        function submitDayVote() {
+            const human = gameState.players[0];
+
+            if (human.isAlive && gameState.selectedTargetId === null) {
+                alert('Pilih pemain yang ingin kamu vote untuk dieksekusi!');
+                return;
+            }
+
+            if (human.isAlive && gameState.selectedTargetId !== null) {
+                gameState.players[gameState.selectedTargetId].votesReceived++;
+                logEvent(`🗳️ Kamu memberikan vote eksekusi kepada ${gameState.players[gameState.selectedTargetId].name}.`, 'text-amber-300');
+            }
+
+            // AI Votes
+            const alivePlayers = gameState.players.filter(p => p.isAlive);
+            alivePlayers.forEach(bot => {
+                if (!bot.isHuman) {
+                    const possibleTargets = alivePlayers.filter(p => p.id !== bot.id);
+                    if (possibleTargets.length > 0) {
+                        const voted = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+                        voted.votesReceived++;
+                    }
+                }
+            });
+
+            document.getElementById('btn-confirm-action').classList.add('hidden');
+            processDayVotingResults();
+        }
+
+        function processDayVotingResults() {
+            renderPlayersList();
+
+            let maxVotes = -1;
+            let lynchedPlayer = null;
+            let isTie = false;
+
+            gameState.players.forEach(p => {
+                if (p.isAlive) {
+                    if (p.votesReceived > maxVotes) {
+                        maxVotes = p.votesReceived;
+                        lynchedPlayer = p;
+                        isTie = false;
+                    } else if (p.votesReceived === maxVotes && maxVotes > 0) {
+                        isTie = true;
+                    }
+                }
+            });
+
+            setTimeout(() => {
+                if (isTie || !lynchedPlayer || maxVotes === 0) {
+                    logEvent(`⚖️ HASIL VOTING: Suara seri atau tidak ada suara mayoritas. Tidak ada warga yang dieksekusi hari ini.`, 'text-slate-300 font-semibold');
+                } else {
+                    lynchedPlayer.isAlive = false;
+                    const isWerewolf = lynchedPlayer.role.team === 'werewolf';
+                    const teamBadge = isWerewolf ? '🔴 TIM WEREWOLF' : '🟢 TIM VILLAGER';
+                    
+                    logEvent(`----------------------------------------`, 'text-slate-700');
+                    logEvent(`🔥 HASIL VOTING: ${lynchedPlayer.name} dieksekusi oleh warga desa (${maxVotes} Vote)!`, 'text-red-400 font-bold text-sm');
+                    
+                    logEvent(`📣 PEMBERITAHUAN SISTEM: Peran Asli ${lynchedPlayer.name} adalah ${lynchedPlayer.role.name.toUpperCase()} [${teamBadge}]`, isWerewolf ? 'text-red-300 font-bold bg-red-950/80 p-2.5 rounded-lg border border-red-600 shadow-md' : 'text-amber-300 font-bold bg-amber-950/80 p-2.5 rounded-lg border border-amber-600 shadow-md');
+                    
+                    if (isWerewolf) {
+                        logEvent(`🎉 KEMENANGAN KECIL! Warga berhasil meng-eliminasi 1 Werewolf!`, 'text-emerald-400 font-bold');
+                    } else {
+                        logEvent(`😱 SALAH SASARAN! Warga salah mengeksekusi seorang ${lynchedPlayer.role.name} yang polos!`, 'text-red-400 font-bold');
+                    }
+                    logEvent(`----------------------------------------`, 'text-slate-700');
+                }
+
+                renderPlayersList();
+
+                if (!checkWinCondition()) {
+                    gameState.dayNumber++;
+                    setTimeout(startNightPhase, 3500);
+                }
+            }, 1500);
+        }
+
+        function checkWinCondition() {
+            const alivePlayers = gameState.players.filter(p => p.isAlive);
+            const aliveWerewolves = alivePlayers.filter(p => p.role.team === 'werewolf').length;
+            const aliveVillagers = alivePlayers.filter(p => p.role.team === 'villager').length;
+
+            if (aliveWerewolves === 0) {
+                endGame('villager');
+                return true;
+            } else if (aliveWerewolves >= aliveVillagers) {
+                endGame('werewolf');
+                return true;
+            }
+            return false;
+        }
+
+        function endGame(winningTeam) {
+            playSound('victory');
+            gameState.phase = 'GAMEOVER';
+
+            document.getElementById('screen-game').classList.add('hidden');
+            const screenGameOver = document.getElementById('screen-gameover');
+            screenGameOver.classList.remove('hidden');
+
+            const iconBox = document.getElementById('gameover-icon-box');
+            const title = document.getElementById('gameover-winner-title');
+            const desc = document.getElementById('gameover-desc');
+
+            if (winningTeam === 'villager') {
+                iconBox.className = 'w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl shadow-2xl bg-amber-500/20 text-amber-300 border-2 border-amber-500';
+                iconBox.innerHTML = '<i class="fa-solid fa-trophy"></i>';
+                title.innerText = 'KEMENANGAN VILLAGER!';
+                title.className = 'font-cinzel text-2xl font-bold tracking-wider text-amber-300';
+                desc.innerText = 'Selamat! Seluruh Werewolf berhasil ditemukan dan dieliminasi!';
+            } else {
+                iconBox.className = 'w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl shadow-2xl bg-red-950 text-red-400 border-2 border-red-600';
+                iconBox.innerHTML = '<i class="fa-solid fa-skull"></i>';
+                title.innerText = 'KEMENANGAN WEREWOLF!';
+                title.className = 'font-cinzel text-2xl font-bold tracking-wider text-red-400';
+                desc.innerText = 'Kaum Werewolf berhasil menguasai desa dan melahap seluruh warga!';
+            }
+
+            const rolesList = document.getElementById('final-roles-list');
+            rolesList.innerHTML = '';
+            gameState.players.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'flex justify-between items-center py-1 border-b border-slate-800/60';
+                item.innerHTML = `
+                    <span class="${p.isAlive ? 'text-slate-200 font-semibold' : 'text-slate-500 line-through'}">${p.name} ${p.id === 0 ? '(Kamu)' : ''}</span>
+                    <span class="${p.role.color} font-bold">${p.role.name}</span>
+                `;
+                rolesList.appendChild(item);
+            });
+        }
+
+        function resetToLobby() {
+            playSound('click');
+            document.getElementById('screen-gameover').classList.add('hidden');
+            document.getElementById('screen-lobby').classList.remove('hidden');
+            updateBadge('Phase: Lobby', 'bg-amber-500/10 text-amber-300');
+        }
+
         function updateChatControlsState() {
             const human = gameState.players[0];
             const inputMsg = document.getElementById('input-chat-msg');
@@ -702,41 +927,28 @@
                 }
             }
         }
-            setTimeout(() => {
-                if (isTie || !lynchedPlayer) {
-                    logEvent(`⚖️ Hasil Voting Seri! Tidak ada warga yang dieksekusi hari ini.`, 'text-slate-300 font-semibold');
-                } else {
-                    lynchedPlayer.isAlive = false;
-                    const isWerewolf = lynchedPlayer.role.team === 'werewolf';
-                    const teamBadge = isWerewolf ? '🔴 TIM WEREWOLF' : '🟢 TIM VILLAGER';
-                    
-                    logEvent(`----------------------------------------`, 'text-slate-700');
-                    logEvent(`🔥 HASIL VOTING: ${lynchedPlayer.name} dieksekusi warga (${highestVotes} Vote)!`, 'text-red-400 font-bold text-sm');
-                    
-                    // Pengumuman Sistem yang Jelas tentang Peran Yang Di-vote
-                    logEvent(`📣 PEMBERITAHUAN SISTEM: Peran Asli ${lynchedPlayer.name} adalah ${lynchedPlayer.role.name.toUpperCase()} [${teamBadge}]`, isWerewolf ? 'text-red-300 font-bold bg-red-950/80 p-2.5 rounded-lg border border-red-600 shadow-md' : 'text-amber-300 font-bold bg-amber-950/80 p-2.5 rounded-lg border border-amber-600 shadow-md');
-                    
-                    if (isWerewolf) {
-                        logEvent(`🎉 KEMENANGAN KECIL! Warga berhasil meng-eliminasi 1 Werewolf!`, 'text-emerald-400 font-bold');
-                    } else {
-                        logEvent(`😱 SALAH SASARAN! Warga salah mengeksekusi seorang ${lynchedPlayer.role.name} yang polos!`, 'text-red-400 font-bold');
-                    }
-                    logEvent(`----------------------------------------`, 'text-slate-700');
-                }
 
-                renderPlayersList();
+        let mediaRecorder = null;
+        let audioChunks = [];
 
-                // Check Win condition after voting
-                if (!checkWinCondition()) {
-                    gameState.dayNumber++;
-                    setTimeout(startNightPhase, 3000);
-                }
-            }, 1500);
+        async function initVoiceRecorder() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.onstop = () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    const audioUrl = URL.createObjectURL(audioBlob);
+                    addVoiceNoteToChat(audioUrl);
+                };
+            } catch (err) {
+                alert('Akses mikrofon ditolak atau tidak didukung di browser ini.');
+            }
         }
+
         function startVoiceRecord(e) {
             if (e && e.type === 'touchstart') e.preventDefault();
             
-            // Validasi Pemain Mati
             const humanPlayer = gameState.players[0];
             if (humanPlayer && !humanPlayer.isAlive) {
                 alert('👻 Kamu sudah tereliminasi (arwah) dan tidak dapat merekam voice chat!');
@@ -788,10 +1000,8 @@
             if (!msg) return;
 
             const currentPlayer = gameState.players[0] || { name: 'Pemain' };
-            
-            // Validasi Pemain Mati
             if (!currentPlayer.isAlive) {
-                alert('👻 Pemain yang sudah tereliminasi (arwah) tidak dapat berdiskusi atau mengirim chat!');
+                alert('👻 Pemain yang sudah tereliminasi (arwah) tidak dapat berdiskusi!');
                 input.value = '';
                 return;
             }
@@ -831,7 +1041,6 @@
             logsBox.scrollTop = logsBox.scrollHeight;
         }
 
-        // Utility Helpers
         function logEvent(text, colorClass = 'text-slate-300') {
             const logsBox = document.getElementById('game-logs');
             const entry = document.createElement('div');
@@ -848,7 +1057,6 @@
             badge.innerText = text;
         }
 
-        // Initialize on Load
         window.onload = function() {
             initLobby();
         }
